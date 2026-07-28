@@ -1,4 +1,4 @@
 interface Env {
-  BUCKET: R2Bucket;
+  BUCKET: KVNamespace;
   AUTH_TOKEN: string;
 }

@@ -1,7 +1,6 @@
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
-  // 1. 鉴权
   const token = request.headers.get('Authorization');
   if (token !== `Bearer ${env.AUTH_TOKEN}`) {
     return new Response('Unauthorized', { status: 401 });
@@ -21,12 +20,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const uploadPromises = files.map(async (file) => {
-      // 生成唯一文件名: category/timestamp-uuid.extension
       const ext = file.name.split('.').pop() || 'png';
       const key = `${category}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
       
-      await env.BUCKET.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type },
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // 存入 KV，并附带 7天 (604800秒) 的过期时间，以及 MIME 类型元数据
+      await env.BUCKET.put(key, arrayBuffer, {
+        expirationTtl: 604800,
+        metadata: { type: file.type || 'image/jpeg' }
       });
       return key;
     });

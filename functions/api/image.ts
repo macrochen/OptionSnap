@@ -2,7 +2,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  // 1. 鉴权：支持 Header 和 URL 参数 (方便 img 标签直接引用)
+  // 1. 鉴权：支持 Header 和 URL 参数
   let token = request.headers.get('Authorization');
   if (token && token.startsWith('Bearer ')) {
     token = token.substring(7);
@@ -21,17 +21,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const object = await env.BUCKET.get(key);
+    // 从 KV 连带 metadata 一起取，并指定类型为 arrayBuffer
+    const { value, metadata } = await env.BUCKET.getWithMetadata<{type: string}>(key, 'arrayBuffer');
     
-    if (!object) {
+    if (!value) {
       return new Response('Image not found', { status: 404 });
     }
 
     const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set('etag', object.httpEtag);
+    // 使用存入时的 contentType，或默认 fallback
+    headers.set('Content-Type', metadata?.type || 'image/jpeg');
 
-    return new Response(object.body, { headers });
+    return new Response(value, { headers });
   } catch (error) {
     return new Response(`Fetch failed: ${error}`, { status: 500 });
   }

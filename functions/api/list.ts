@@ -1,7 +1,6 @@
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
-  // 1. 鉴权
   const token = request.headers.get('Authorization');
   if (token !== `Bearer ${env.AUTH_TOKEN}`) {
     return new Response('Unauthorized', { status: 401 });
@@ -15,14 +14,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    // 列出指定前缀（分类）下的对象
+    // 从 KV 列表拉取
     const listed = await env.BUCKET.list({ prefix: `${category}/` });
     
-    // 生成包含 key 和下载链接的列表
-    const files = listed.objects.map(obj => ({
-      key: obj.key,
-      size: obj.size,
-      uploaded: obj.uploaded
+    // 生成包含 key 的列表 (KV 没有 size 等元数据，可以直接只返还 key)
+    const files = listed.keys.map(k => ({
+      key: k.name
     }));
 
     return new Response(JSON.stringify({ success: true, files }), {
